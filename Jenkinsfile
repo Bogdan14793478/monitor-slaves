@@ -15,7 +15,6 @@ pipeline {
         choice(
             name: 'ENVIRONMENT',
             choices: ['dev', 'stage', 'prod'],
-            defaultValue: 'dev',
             description: 'Оточення (dev, stage, prod)'
         )
     }
