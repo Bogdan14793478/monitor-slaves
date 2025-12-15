@@ -1,51 +1,19 @@
 pipeline {
-    agent { label 'imperator' }
-    
-    parameters {
-        string(
-            name: 'TERRAFORM_PATH',
-            defaultValue: './terraform',
-            description: 'Шлях до Terraform-коду'
-        )
-        booleanParam(
-            name: 'AUTO_APPROVE',
-            defaultValue: false,
-            description: 'Прапорець для auto-apply'
-        )
-        choice(
-            name: 'ENVIRONMENT',
-            choices: ['dev', 'stage', 'prod'],
-            description: 'Оточення (dev, stage, prod)'
-        )
-    }
-    
+    agent none
+
     stages {
         stage('Checkout') {
+            agent { label 'imperator' }
             steps {
-                echo "Checking out code..."
                 checkout scm
             }
         }
-        
+
         stage('Monitor Slaves') {
+            agent { label 'imperator' }
             steps {
-                echo "Моніторинг Jenkins агентів"
-                echo "Branch: ${env.BRANCH_NAME}"
-                echo "Build: ${env.BUILD_NUMBER}"
-                echo "Environment: ${params.ENVIRONMENT}"
-                echo "Terraform Path: ${params.TERRAFORM_PATH}"
-                echo "Auto Approve: ${params.AUTO_APPROVE}"
-                sh '''
-                    echo "Checking Jenkins agents status..."
-                    echo "This is a placeholder for monitoring logic"
-                '''
+                sh 'echo "Running on docker agent"'
             }
-        }
-    }
-    
-    post {
-        always {
-            echo "Pipeline completed for branch: ${env.BRANCH_NAME}"
         }
     }
 }
