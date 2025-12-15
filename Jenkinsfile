@@ -1,5 +1,5 @@
 pipeline {
-    agent any
+    agent { label 'imperator' }
     
     parameters {
         string(
