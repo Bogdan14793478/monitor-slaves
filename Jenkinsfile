@@ -3,14 +3,14 @@ pipeline {
 
     stages {
         stage('Checkout') {
-            agent { label 'imperator' }
+            agent any
             steps {
                 checkout scm
             }
         }
 
         stage('Monitor Slaves') {
-            agent { label 'imperator' }
+            agent any
             steps {
                 sh 'echo "Running on docker agent"'
             }
