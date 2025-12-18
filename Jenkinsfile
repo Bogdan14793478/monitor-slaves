@@ -1,16 +1,14 @@
 pipeline {
-    agent none
+    agent any
 
     stages {
         stage('Checkout') {
-            agent any
             steps {
                 checkout scm
             }
         }
 
         stage('Monitor Slaves') {
-            agent any
             steps {
                 sh 'echo "Running on docker agent"'
             }
