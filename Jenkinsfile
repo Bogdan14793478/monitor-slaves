@@ -28,8 +28,16 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     
-                    // Парсим JSON и выводим информацию
-                    def agents = readJSON text: agentsJson
+                    echo "Raw JSON response: ${agentsJson}"
+                    
+                    // Парсим JSON используя встроенный Groovy JsonSlurper с @NonCPS
+                    // @NonCPS нужен для обхода sandbox ограничений Jenkins
+                    @NonCPS
+                    def parseJson(String json) {
+                        return new groovy.json.JsonSlurper().parseText(json)
+                    }
+                    
+                    def agents = parseJson(agentsJson)
                     def computers = agents.computer ?: []
                     
                     echo "=== Agents Status ==="
@@ -114,5 +122,3 @@ pipeline {
         }
     }
 }
-
-
