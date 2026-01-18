@@ -1,3 +1,9 @@
+// Функция для парсинга JSON (должна быть вне pipeline блока)
+@NonCPS
+def parseJson(String json) {
+    return new groovy.json.JsonSlurper().parseText(json)
+}
+
 pipeline {
     agent any
 
@@ -30,13 +36,7 @@ pipeline {
                     
                     echo "Raw JSON response: ${agentsJson}"
                     
-                    // Парсим JSON используя встроенный Groovy JsonSlurper с @NonCPS
-                    // @NonCPS нужен для обхода sandbox ограничений Jenkins
-                    @NonCPS
-                    def parseJson(String json) {
-                        return new groovy.json.JsonSlurper().parseText(json)
-                    }
-                    
+                    // Парсим JSON используя функцию parseJson (определена выше)
                     def agents = parseJson(agentsJson)
                     def computers = agents.computer ?: []
                     
