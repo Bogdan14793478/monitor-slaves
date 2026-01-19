@@ -1,9 +1,3 @@
-// Функция для парсинга JSON (должна быть вне pipeline блока)
-@NonCPS
-def parseJson(String json) {
-    return new groovy.json.JsonSlurper().parseText(json)
-}
-
 pipeline {
     agent any
 
@@ -18,107 +12,55 @@ pipeline {
             steps {
                 script {
                     echo "=== Jenkins Agents Monitoring ==="
-                    echo "Jenkins URL env: ${env.JENKINS_URL}"
                     echo "Time: ${new Date()}"
                     echo ""
                     
-                    // Пробуем определить URL Jenkins из переменных окружения агента
-                    def agentJenkinsUrl = sh(
-                        script: 'echo $JENKINS_URL 2>/dev/null || echo "NOT_SET"',
-                        returnStdout: true
-                    ).trim()
-                    echo "Agent JENKINS_URL: ${agentJenkinsUrl}"
+                    // Используем встроенные Groovy API Jenkins для получения информации об агентах
+                    // Это работает без curl и не зависит от сетевой доступности
+                    echo "Using Jenkins Groovy API to get agent information..."
                     
-                    // Пробуем определить hostname/IP агента
-                    def agentHostname = sh(
-                        script: 'hostname -I 2>/dev/null || hostname 2>/dev/null || echo "UNKNOWN"',
-                        returnStdout: true
-                    ).trim()
-                    echo "Agent hostname/IP: ${agentHostname}"
+                    def computers = []
+                    def jenkins = Jenkins.getInstance()
+                    
+                    // Получаем все компьютеры (агенты + master)
+                    def allComputers = jenkins.getComputers()
+                    
+                    echo "Found ${allComputers.size()} computer(s) in Jenkins"
                     echo ""
                     
-                    // Получаем информацию о всех агентах через Jenkins API
-                    // Пробуем разные варианты URL для доступа к Jenkins master
-                    def jenkinsUrl = null
-                    def agentsJson = null
-                    
-                    // Docker агенты запускаются на Multipass VM (192.168.64.14)
-                    // Jenkins запущен на хосте, доступен по 192.168.64.1:8080
-                    def urlsToTry = []
-                    
-                    // Добавляем URL из переменной окружения агента (если есть)
-                    if (agentJenkinsUrl && agentJenkinsUrl != 'NOT_SET' && agentJenkinsUrl != '') {
-                        urlsToTry.add(agentJenkinsUrl)
-                        echo "Added agent JENKINS_URL: ${agentJenkinsUrl}"
-                    }
-                    
-                    // Добавляем стандартные варианты
-                    urlsToTry.addAll([
-                        'http://192.168.64.1:8080',       // IP хоста (из конфигурации) - ПРИОРИТЕТ
-                        'http://jenkins:8080',             // Имя контейнера (если в той же сети)
-                        'http://192.168.97.2:8080',       // IP Jenkins в monitoring-network
-                        'http://localhost:8080'            // Fallback
-                    ])
-                    
-                    echo "URLs to try: ${urlsToTry}"
-                    echo ""
-                    
-                    for (url in urlsToTry) {
-                        echo "Trying URL: ${url}"
+                    // Преобразуем в список для обработки
+                    for (computer in allComputers) {
+                        def compInfo = [:]
+                        compInfo.displayName = computer.displayName ?: 'Unknown'
+                        compInfo.offline = computer.isOffline()
+                        compInfo.numExecutors = computer.numExecutors
+                        compInfo.description = computer.node?.nodeDescription ?: ''
+                        compInfo.idle = computer.isIdle()
                         
-                        // Сначала проверяем доступность хоста
-                        def hostCheck = sh(
-                            script: """
-                                timeout 3 bash -c 'echo > /dev/tcp/${url.replaceAll("http://", "").replaceAll(":8080", "")}/8080' 2>&1 || echo "PORT_CLOSED"
-                            """,
-                            returnStdout: true
-                        ).trim()
-                        
-                        if (hostCheck.contains("PORT_CLOSED") || hostCheck.contains("timeout")) {
-                            echo "⚠️  Port 8080 not accessible on ${url}"
-                        }
-                        
-                        // Пробуем подключиться с детальной диагностикой
-                        def testResult = sh(
-                            script: """
-                                curl -s --connect-timeout 5 --max-time 10 -u admin:admin123 '${url}/computer/api/json?tree=computer[displayName,offline,offlineCauseReason,executors[progressExecutable[url]],numExecutors,description,idle]' 2>&1
-                            """,
-                            returnStdout: true
-                        ).trim()
-                        
-                        echo "Response preview: ${testResult.take(300)}"
-                        
-                        // Проверяем, что это валидный JSON ответ
-                        if (testResult && testResult.startsWith("{") && !testResult.contains("curl:") && !testResult.contains("Could not resolve") && !testResult.contains("Connection refused") && !testResult.contains("timeout")) {
-                            try {
-                                // Пробуем распарсить, чтобы убедиться что это валидный JSON
-                                def testParse = parseJson(testResult)
-                                agentsJson = testResult
-                                jenkinsUrl = url
-                                echo "✅ Successfully connected to Jenkins at: ${jenkinsUrl}"
-                                break
-                            } catch (Exception e) {
-                                echo "❌ Invalid JSON response from: ${url}"
-                                echo "Error: ${e.message}"
-                                echo "Response: ${testResult.take(500)}"
-                            }
+                        // Получаем причину offline статуса
+                        if (compInfo.offline) {
+                            def offlineCause = computer.getOfflineCause()
+                            compInfo.offlineCauseReason = offlineCause ? offlineCause.toString() : ''
                         } else {
-                            echo "❌ Failed to connect to: ${url}"
-                            if (testResult.length() > 0) {
-                                echo "Response: ${testResult.take(500)}"
-                            }
+                            compInfo.offlineCauseReason = ''
                         }
+                        
+                        // Получаем информацию об executors и активных задачах
+                        def executorsList = []
+                        def executors = computer.executors
+                        for (executor in executors) {
+                            def execInfo = [:]
+                            def executable = executor.currentExecutable
+                            if (executable) {
+                                execInfo.progressExecutable = [:]
+                                execInfo.progressExecutable.url = executable.url ?: ''
+                            }
+                            executorsList.add(execInfo)
+                        }
+                        compInfo.executors = executorsList
+                        
+                        computers.add(compInfo)
                     }
-                    
-                    if (!agentsJson) {
-                        error("Failed to connect to Jenkins API from any URL")
-                    }
-                    
-                    echo "Raw JSON response: ${agentsJson}"
-                    
-                    // Парсим JSON используя функцию parseJson (определена выше)
-                    def agents = parseJson(agentsJson)
-                    def computers = agents.computer ?: []
                     
                     echo "=== Agents Status ==="
                     echo ""
