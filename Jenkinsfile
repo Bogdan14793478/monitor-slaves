@@ -19,7 +19,6 @@ pipeline {
                 script {
                     echo "=== Jenkins Agents Monitoring ==="
                     echo "Jenkins URL env: ${env.JENKINS_URL}"
-                    echo "Jenkins URL from build: ${currentBuild.absoluteUrl}"
                     echo "Time: ${new Date()}"
                     echo ""
                     
@@ -43,34 +42,26 @@ pipeline {
                     def jenkinsUrl = null
                     def agentsJson = null
                     
-                    // Пробуем разные варианты URL для доступа к Jenkins master
                     // Docker агенты запускаются на Multipass VM (192.168.64.14)
                     // Jenkins запущен на хосте, доступен по 192.168.64.1:8080
-                    
-                    // Пробуем извлечь URL из build URL
-                    def buildUrl = currentBuild.absoluteUrl ?: ''
-                    def extractedUrl = null
-                    if (buildUrl) {
-                        def urlMatch = buildUrl =~ /(https?:\/\/[^\/]+)/
-                        if (urlMatch) {
-                            extractedUrl = urlMatch[0][1]
-                            echo "Extracted URL from build: ${extractedUrl}"
-                        }
-                    }
-                    
                     def urlsToTry = []
-                    if (extractedUrl) {
-                        urlsToTry.add(extractedUrl)
-                    }
-                    if (agentJenkinsUrl && agentJenkinsUrl != 'NOT_SET') {
+                    
+                    // Добавляем URL из переменной окружения агента (если есть)
+                    if (agentJenkinsUrl && agentJenkinsUrl != 'NOT_SET' && agentJenkinsUrl != '') {
                         urlsToTry.add(agentJenkinsUrl)
+                        echo "Added agent JENKINS_URL: ${agentJenkinsUrl}"
                     }
+                    
+                    // Добавляем стандартные варианты
                     urlsToTry.addAll([
                         'http://192.168.64.1:8080',       // IP хоста (из конфигурации) - ПРИОРИТЕТ
                         'http://jenkins:8080',             // Имя контейнера (если в той же сети)
                         'http://192.168.97.2:8080',       // IP Jenkins в monitoring-network
                         'http://localhost:8080'            // Fallback
                     ])
+                    
+                    echo "URLs to try: ${urlsToTry}"
+                    echo ""
                     
                     for (url in urlsToTry) {
                         echo "Trying URL: ${url}"
