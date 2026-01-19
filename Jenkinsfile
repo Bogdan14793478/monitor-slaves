@@ -23,16 +23,40 @@ pipeline {
                     echo ""
                     
                     // Получаем информацию о всех агентах через Jenkins API
-                    def jenkinsUrl = env.JENKINS_URL ?: 'http://localhost:8080'
-                    def apiUrl = "${jenkinsUrl}/computer/api/json?tree=computer[displayName,offline,offlineCauseReason,executors[progressExecutable[url]],numExecutors,description,idle]"
+                    // Пробуем разные варианты URL для доступа к Jenkins master
+                    def jenkinsUrl = null
+                    def agentsJson = null
                     
-                    // Используем curl для получения данных (работает без дополнительных плагинов)
-                    def agentsJson = sh(
-                        script: """
-                            curl -s -u admin:admin123 '${apiUrl}' || echo '{"computer":[]}'
-                        """,
-                        returnStdout: true
-                    ).trim()
+                    // Вариант 1: Имя контейнера в Docker сети (если агенты в той же сети)
+                    def urlsToTry = [
+                        'http://jenkins:8080',
+                        'http://192.168.64.1:8080',
+                        env.JENKINS_URL ?: 'http://localhost:8080'
+                    ]
+                    
+                    for (url in urlsToTry) {
+                        echo "Trying URL: ${url}"
+                        def testResult = sh(
+                            script: """
+                                curl -s -f -u admin:admin123 '${url}/computer/api/json?tree=computer[displayName,offline,offlineCauseReason,executors[progressExecutable[url]],numExecutors,description,idle]' 2>&1
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (testResult && !testResult.contains("curl:") && !testResult.contains("Could not resolve") && testResult.startsWith("{")) {
+                            agentsJson = testResult
+                            jenkinsUrl = url
+                            echo "✅ Successfully connected to Jenkins at: ${jenkinsUrl}"
+                            break
+                        } else {
+                            echo "❌ Failed to connect to: ${url}"
+                            echo "Response: ${testResult.take(100)}"
+                        }
+                    }
+                    
+                    if (!agentsJson) {
+                        error("Failed to connect to Jenkins API from any URL")
+                    }
                     
                     echo "Raw JSON response: ${agentsJson}"
                     
