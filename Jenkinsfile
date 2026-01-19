@@ -38,19 +38,23 @@ pipeline {
                         echo "Trying URL: ${url}"
                         def testResult = sh(
                             script: """
-                                curl -s -f -u admin:admin123 '${url}/computer/api/json?tree=computer[displayName,offline,offlineCauseReason,executors[progressExecutable[url]],numExecutors,description,idle]' 2>&1
+                                curl -s -u admin:admin123 '${url}/computer/api/json?tree=computer[displayName,offline,offlineCauseReason,executors[progressExecutable[url]],numExecutors,description,idle]' 2>&1 || echo 'ERROR'
                             """,
                             returnStdout: true
                         ).trim()
                         
-                        if (testResult && !testResult.contains("curl:") && !testResult.contains("Could not resolve") && testResult.startsWith("{")) {
+                        echo "Response preview: ${testResult.take(200)}"
+                        
+                        if (testResult && testResult != 'ERROR' && !testResult.contains("curl:") && !testResult.contains("Could not resolve") && testResult.startsWith("{")) {
                             agentsJson = testResult
                             jenkinsUrl = url
                             echo "✅ Successfully connected to Jenkins at: ${jenkinsUrl}"
                             break
                         } else {
                             echo "❌ Failed to connect to: ${url}"
-                            echo "Response: ${testResult.take(100)}"
+                            if (testResult.length() > 0) {
+                                echo "Response: ${testResult.take(200)}"
+                            }
                         }
                     }
                     
