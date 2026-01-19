@@ -27,11 +27,15 @@ pipeline {
                     def jenkinsUrl = null
                     def agentsJson = null
                     
-                    // Вариант 1: Имя контейнера в Docker сети (если агенты в той же сети)
+                    // Пробуем разные варианты URL для доступа к Jenkins master
+                    // Вариант 1: Имя контейнера в Docker сети
+                    // Вариант 2: IP Jenkins в Docker сети (monitoring-network)
+                    // Вариант 3: IP хоста
                     def urlsToTry = [
-                        'http://jenkins:8080',
-                        'http://192.168.64.1:8080',
-                        env.JENKINS_URL ?: 'http://localhost:8080'
+                        'http://jenkins:8080',           // Имя контейнера в Docker сети
+                        'http://192.168.97.2:8080',       // IP Jenkins в monitoring-network
+                        'http://192.168.64.1:8080',       // IP хоста (из конфигурации)
+                        env.JENKINS_URL ?: 'http://localhost:8080'  // Fallback
                     ]
                     
                     for (url in urlsToTry) {
