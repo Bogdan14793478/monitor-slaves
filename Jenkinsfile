@@ -1,48 +1,7 @@
-// Функция для получения информации об агентах через Jenkins API
-// Используем @NonCPS для обхода sandbox ограничений
+// Функция для парсинга JSON (должна быть вне pipeline блока)
 @NonCPS
-def getAgentsInfo() {
-    def computers = []
-    def jenkins = jenkins.model.Jenkins.getInstance()
-    
-    // Получаем все компьютеры (агенты + master)
-    def allComputers = jenkins.getComputers()
-    
-    // Преобразуем в список для обработки
-    for (computer in allComputers) {
-        def compInfo = [:]
-        compInfo.displayName = computer.displayName ?: 'Unknown'
-        compInfo.offline = computer.isOffline()
-        compInfo.numExecutors = computer.numExecutors
-        compInfo.description = computer.node?.nodeDescription ?: ''
-        compInfo.idle = computer.isIdle()
-        
-        // Получаем причину offline статуса
-        if (compInfo.offline) {
-            def offlineCause = computer.getOfflineCause()
-            compInfo.offlineCauseReason = offlineCause ? offlineCause.toString() : ''
-        } else {
-            compInfo.offlineCauseReason = ''
-        }
-        
-        // Получаем информацию об executors и активных задачах
-        def executorsList = []
-        def executors = computer.executors
-        for (executor in executors) {
-            def execInfo = [:]
-            def executable = executor.currentExecutable
-            if (executable) {
-                execInfo.progressExecutable = [:]
-                execInfo.progressExecutable.url = executable.url ?: ''
-            }
-            executorsList.add(execInfo)
-        }
-        compInfo.executors = executorsList
-        
-        computers.add(compInfo)
-    }
-    
-    return computers
+def parseJson(String json) {
+    return new groovy.json.JsonSlurper().parseText(json)
 }
 
 pipeline {
@@ -62,11 +21,73 @@ pipeline {
                     echo "Time: ${new Date()}"
                     echo ""
                     
-                    // Используем встроенные Groovy API Jenkins для получения информации об агентах
-                    // Это работает без curl и не зависит от сетевой доступности
-                    echo "Using Jenkins Groovy API to get agent information..."
+                    // Получаем информацию о всех агентах через Jenkins REST API
+                    // Используем curl, так как Groovy API требует разрешений sandbox
+                    def jenkinsUrl = null
+                    def agentsJson = null
                     
-                    def computers = getAgentsInfo()
+                    // Пробуем определить URL Jenkins
+                    // Из конфигурации Docker Cloud: jenkinsUrl: "http://192.168.64.1:8080"
+                    def urlsToTry = []
+                    
+                    // Добавляем URL из переменной окружения (если есть)
+                    if (env.JENKINS_URL) {
+                        urlsToTry.add(env.JENKINS_URL)
+                        echo "Added JENKINS_URL from env: ${env.JENKINS_URL}"
+                    }
+                    
+                    // Добавляем стандартные варианты (из конфигурации)
+                    urlsToTry.addAll([
+                        'http://192.168.64.1:8080',       // IP хоста (из jenkins.yaml)
+                        'http://jenkins:8080',             // Имя контейнера (если в той же сети)
+                        'http://192.168.97.2:8080',       // IP Jenkins в monitoring-network
+                        'http://localhost:8080'            // Fallback
+                    ])
+                    
+                    echo "URLs to try: ${urlsToTry}"
+                    echo ""
+                    
+                    // Пробуем подключиться к каждому URL
+                    for (url in urlsToTry) {
+                        echo "Trying URL: ${url}"
+                        
+                        // Пробуем получить данные через API
+                        def result = sh(
+                            script: """
+                                curl -s --connect-timeout 5 --max-time 10 -u admin:admin123 '${url}/computer/api/json?tree=computer[displayName,offline,offlineCauseReason,executors[progressExecutable[url]],numExecutors,description,idle]' 2>&1
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        // Проверяем, что это валидный JSON
+                        if (result && result.startsWith("{") && !result.contains("curl:") && !result.contains("Could not resolve") && !result.contains("Connection refused") && !result.contains("timeout")) {
+                            try {
+                                // Пробуем распарсить JSON
+                                def testParse = parseJson(result)
+                                agentsJson = result
+                                jenkinsUrl = url
+                                echo "✅ Successfully connected to Jenkins at: ${jenkinsUrl}"
+                                break
+                            } catch (Exception e) {
+                                echo "❌ Invalid JSON response from: ${url}"
+                                echo "Error: ${e.message}"
+                                echo "Response preview: ${result.take(200)}"
+                            }
+                        } else {
+                            echo "❌ Failed to connect to: ${url}"
+                            if (result.length() > 0) {
+                                echo "Response: ${result.take(200)}"
+                            }
+                        }
+                    }
+                    
+                    if (!agentsJson) {
+                        error("❌ ERROR: Failed to connect to Jenkins API from any URL")
+                    }
+                    
+                    // Парсим JSON
+                    def agents = parseJson(agentsJson)
+                    def computers = agents.computer ?: []
                     
                     echo "Found ${computers.size()} computer(s) in Jenkins"
                     echo ""
