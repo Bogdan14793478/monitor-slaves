@@ -1,3 +1,50 @@
+// Функция для получения информации об агентах через Jenkins API
+// Используем @NonCPS для обхода sandbox ограничений
+@NonCPS
+def getAgentsInfo() {
+    def computers = []
+    def jenkins = jenkins.model.Jenkins.getInstance()
+    
+    // Получаем все компьютеры (агенты + master)
+    def allComputers = jenkins.getComputers()
+    
+    // Преобразуем в список для обработки
+    for (computer in allComputers) {
+        def compInfo = [:]
+        compInfo.displayName = computer.displayName ?: 'Unknown'
+        compInfo.offline = computer.isOffline()
+        compInfo.numExecutors = computer.numExecutors
+        compInfo.description = computer.node?.nodeDescription ?: ''
+        compInfo.idle = computer.isIdle()
+        
+        // Получаем причину offline статуса
+        if (compInfo.offline) {
+            def offlineCause = computer.getOfflineCause()
+            compInfo.offlineCauseReason = offlineCause ? offlineCause.toString() : ''
+        } else {
+            compInfo.offlineCauseReason = ''
+        }
+        
+        // Получаем информацию об executors и активных задачах
+        def executorsList = []
+        def executors = computer.executors
+        for (executor in executors) {
+            def execInfo = [:]
+            def executable = executor.currentExecutable
+            if (executable) {
+                execInfo.progressExecutable = [:]
+                execInfo.progressExecutable.url = executable.url ?: ''
+            }
+            executorsList.add(execInfo)
+        }
+        compInfo.executors = executorsList
+        
+        computers.add(compInfo)
+    }
+    
+    return computers
+}
+
 pipeline {
     agent any
 
@@ -19,48 +66,10 @@ pipeline {
                     // Это работает без curl и не зависит от сетевой доступности
                     echo "Using Jenkins Groovy API to get agent information..."
                     
-                    def computers = []
-                    def jenkins = Jenkins.getInstance()
+                    def computers = getAgentsInfo()
                     
-                    // Получаем все компьютеры (агенты + master)
-                    def allComputers = jenkins.getComputers()
-                    
-                    echo "Found ${allComputers.size()} computer(s) in Jenkins"
+                    echo "Found ${computers.size()} computer(s) in Jenkins"
                     echo ""
-                    
-                    // Преобразуем в список для обработки
-                    for (computer in allComputers) {
-                        def compInfo = [:]
-                        compInfo.displayName = computer.displayName ?: 'Unknown'
-                        compInfo.offline = computer.isOffline()
-                        compInfo.numExecutors = computer.numExecutors
-                        compInfo.description = computer.node?.nodeDescription ?: ''
-                        compInfo.idle = computer.isIdle()
-                        
-                        // Получаем причину offline статуса
-                        if (compInfo.offline) {
-                            def offlineCause = computer.getOfflineCause()
-                            compInfo.offlineCauseReason = offlineCause ? offlineCause.toString() : ''
-                        } else {
-                            compInfo.offlineCauseReason = ''
-                        }
-                        
-                        // Получаем информацию об executors и активных задачах
-                        def executorsList = []
-                        def executors = computer.executors
-                        for (executor in executors) {
-                            def execInfo = [:]
-                            def executable = executor.currentExecutable
-                            if (executable) {
-                                execInfo.progressExecutable = [:]
-                                execInfo.progressExecutable.url = executable.url ?: ''
-                            }
-                            executorsList.add(execInfo)
-                        }
-                        compInfo.executors = executorsList
-                        
-                        computers.add(compInfo)
-                    }
                     
                     echo "=== Agents Status ==="
                     echo ""
