@@ -52,15 +52,19 @@ pipeline {
                         echo "Trying URL: ${url}"
                         
                         // Пробуем получить данные через API
+                        // Используем простой запрос без tree параметра (может вызывать проблемы)
                         def result = sh(
                             script: """
-                                curl -s --connect-timeout 5 --max-time 10 -u admin:admin123 '${url}/computer/api/json?tree=computer[displayName,offline,offlineCauseReason,executors[progressExecutable[url]],numExecutors,description,idle]' 2>&1
+                                curl -s --connect-timeout 5 --max-time 10 -u admin:admin123 '${url}/computer/api/json' 2>&1 || echo "CURL_ERROR"
                             """,
                             returnStdout: true
                         ).trim()
                         
+                        echo "Response length: ${result.length()}"
+                        echo "Response preview (first 500 chars): ${result.take(500)}"
+                        
                         // Проверяем, что это валидный JSON
-                        if (result && result.startsWith("{") && !result.contains("curl:") && !result.contains("Could not resolve") && !result.contains("Connection refused") && !result.contains("timeout")) {
+                        if (result && result != "CURL_ERROR" && result.startsWith("{") && !result.contains("curl:") && !result.contains("Could not resolve") && !result.contains("Connection refused") && !result.contains("timeout") && !result.contains("Connection timed out")) {
                             try {
                                 // Пробуем распарсить JSON
                                 def testParse = parseJson(result)
@@ -71,14 +75,17 @@ pipeline {
                             } catch (Exception e) {
                                 echo "❌ Invalid JSON response from: ${url}"
                                 echo "Error: ${e.message}"
-                                echo "Response preview: ${result.take(200)}"
+                                echo "Response preview: ${result.take(500)}"
                             }
                         } else {
                             echo "❌ Failed to connect to: ${url}"
-                            if (result.length() > 0) {
-                                echo "Response: ${result.take(200)}"
+                            if (result && result.length() > 0) {
+                                echo "Full response: ${result}"
+                            } else {
+                                echo "Empty response or connection error"
                             }
                         }
+                        echo ""
                     }
                     
                     if (!agentsJson) {
