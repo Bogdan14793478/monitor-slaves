@@ -117,11 +117,12 @@ pipeline {
                     // Детальная информация по каждому агенту
                     for (comp in computers) {
                         def name = comp.displayName ?: 'Unknown'
-                        def isOffline = comp.offline ?: true
+                        // offline может быть boolean или null, проверяем явно
+                        def isOffline = (comp.offline == true) ? true : false
                         def offlineReason = comp.offlineCauseReason ?: ''
                         def numExecutors = comp.numExecutors ?: 0
                         def description = comp.description ?: ''
-                        def isIdle = comp.idle ?: false
+                        def isIdle = (comp.idle == true) ? true : false
                         def executors = comp.executors ?: []
                         
                         def status = isOffline ? "🔴 OFFLINE" : "🟢 ONLINE"
