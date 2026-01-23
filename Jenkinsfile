@@ -143,14 +143,17 @@ pipeline {
                     }
                     
                     if (agentsWithDiskInfo > 0) {
-                        def avgDiskGB = (totalDiskSpace / agentsWithDiskInfo) / (1024 * 1024 * 1024)
-                        echo "📊 Average Free Disk Space: ${String.format("%.2f GB", avgDiskGB)} (across ${agentsWithDiskInfo} agents)"
+                        def avgDiskGB = ((totalDiskSpace as Long) / agentsWithDiskInfo) / (1024.0 * 1024.0 * 1024.0)
+                        echo "📊 Average Free Disk Space: ${String.format("%.2f GB", avgDiskGB as Float)} (across ${agentsWithDiskInfo} agents)"
                     }
                     if (agentsWithSwapInfo > 0) {
-                        def avgSwapUsedGB = (totalSwapUsed / agentsWithSwapInfo) / (1024 * 1024 * 1024)
-                        def avgSwapTotalGB = (totalSwapTotal / agentsWithSwapInfo) / (1024 * 1024 * 1024)
-                        def avgSwapPercent = (totalSwapUsed / totalSwapTotal) * 100
-                        echo "📊 Average Swap Usage: ${String.format("%.2f GB", avgSwapUsedGB)} / ${String.format("%.2f GB", avgSwapTotalGB)} (${String.format("%.1f", avgSwapPercent)}% used)"
+                        def avgSwapUsedGB = ((totalSwapUsed as Long) / agentsWithSwapInfo) / (1024.0 * 1024.0 * 1024.0)
+                        def avgSwapTotalGB = ((totalSwapTotal as Long) / agentsWithSwapInfo) / (1024.0 * 1024.0 * 1024.0)
+                        def avgSwapPercent = ((totalSwapUsed as Long) / (totalSwapTotal as Long)) * 100.0
+                        def swapUsedStr = String.format("%.2f GB", avgSwapUsedGB as Float)
+                        def swapTotalStr = String.format("%.2f GB", avgSwapTotalGB as Float)
+                        def swapPercentStr = String.format("%.1f", avgSwapPercent as Float)
+                        echo "📊 Average Swap Usage: ${swapUsedStr} / ${swapTotalStr} (${swapPercentStr}% used)"
                     }
                     echo ""
                     echo "=" * 80
@@ -201,9 +204,9 @@ pipeline {
                                 def diskMonitor = monitorData['hudson.node_monitors.DiskSpaceMonitor']
                                 def size = diskMonitor.size ?: 0
                                 if (size > 0) {
-                                    def sizeGB = size / (1024 * 1024 * 1024)
-                                    def sizeMB = size / (1024 * 1024)
-                                    def sizeStr = sizeGB >= 1 ? String.format("%.2f GB", sizeGB) : String.format("%.2f MB", sizeMB)
+                                    def sizeGB = (size as Long) / (1024.0 * 1024.0 * 1024.0)
+                                    def sizeMB = (size as Long) / (1024.0 * 1024.0)
+                                    def sizeStr = sizeGB >= 1 ? String.format("%.2f GB", sizeGB as Float) : String.format("%.2f MB", sizeMB as Float)
                                     echo "  💾 Free Disk Space: ${sizeStr}"
                                 }
                             }
@@ -213,33 +216,35 @@ pipeline {
                                 def tmpMonitor = monitorData['hudson.node_monitors.TemporarySpaceMonitor']
                                 def size = tmpMonitor.size ?: 0
                                 if (size > 0) {
-                                    def sizeGB = size / (1024 * 1024 * 1024)
-                                    def sizeMB = size / (1024 * 1024)
-                                    def sizeStr = sizeGB >= 1 ? String.format("%.2f GB", sizeGB) : String.format("%.2f MB", sizeMB)
+                                    def sizeGB = (size as Long) / (1024.0 * 1024.0 * 1024.0)
+                                    def sizeMB = (size as Long) / (1024.0 * 1024.0)
+                                    def sizeStr = sizeGB >= 1 ? String.format("%.2f GB", sizeGB as Float) : String.format("%.2f MB", sizeMB as Float)
                                     echo "  📁 Free Temp Space: ${sizeStr}"
                                 }
                             }
                             
-                            // Swap Space Monitor
-                            if (monitorData['hudson.node_monitors.SwapSpaceMonitor']) {
-                                def swapMonitor = monitorData['hudson.node_monitors.SwapSpaceMonitor']
-                                def swapAvailable = swapMonitor.swapAvailable ?: 0
-                                def swapTotal = swapMonitor.swapTotal ?: 0
-                                if (swapTotal > 0) {
-                                    def swapUsed = swapTotal - swapAvailable
-                                    def swapUsedGB = swapUsed / (1024 * 1024 * 1024)
-                                    def swapTotalGB = swapTotal / (1024 * 1024 * 1024)
-                                    def swapPercent = (swapUsed / swapTotal) * 100
-                                    echo "  🔄 Swap: ${String.format("%.2f GB", swapUsedGB)} / ${String.format("%.2f GB", swapTotalGB)} (${String.format("%.1f", swapPercent)}% used)"
+                                // Swap Space Monitor
+                                if (monitorData['hudson.node_monitors.SwapSpaceMonitor']) {
+                                    def swapMonitor = monitorData['hudson.node_monitors.SwapSpaceMonitor']
+                                    def swapAvailable = swapMonitor.swapAvailable ?: 0
+                                    def swapTotal = swapMonitor.swapTotal ?: 0
+                                    if (swapTotal > 0) {
+                                        def swapUsed = swapTotal - swapAvailable
+                                        def swapUsedGB = (swapUsed as Long) / (1024.0 * 1024.0 * 1024.0)
+                                        def swapTotalGB = (swapTotal as Long) / (1024.0 * 1024.0 * 1024.0)
+                                        def swapPercent = ((swapUsed as Long) / (swapTotal as Long)) * 100.0
+                                        echo "  🔄 Swap: ${String.format("%.2f GB", swapUsedGB as Float)} / ${String.format("%.2f GB", swapTotalGB as Float)} (${String.format("%.1f", swapPercent as Float)}% used)"
+                                    }
                                 }
-                            }
                             
                             // Response Time Monitor
                             if (monitorData['hudson.node_monitors.ResponseTimeMonitor']) {
                                 def responseMonitor = monitorData['hudson.node_monitors.ResponseTimeMonitor']
                                 def average = responseMonitor.average ?: 0
                                 if (average > 0) {
-                                    echo "  ⏱️  Average Response Time: ${String.format("%.2f", average)} ms"
+                                    // Преобразуем в float для форматирования
+                                    def averageFloat = average instanceof Number ? average.toFloat() : Float.parseFloat(average.toString())
+                                    echo "  ⏱️  Average Response Time: ${String.format("%.2f", averageFloat)} ms"
                                 }
                             }
                             
