@@ -13,6 +13,7 @@ pipeline {
                 checkout scm
             }
         }
+
         stage('Monitor Slaves') {
             steps {
                 script {
@@ -242,12 +243,9 @@ pipeline {
                                 }
                             }
                             
-                            // Architecture Monitor
-                            if (monitorData['hudson.node_monitors.ArchitectureMonitor']) {
-                                def archMonitor = monitorData['hudson.node_monitors.ArchitectureMonitor']
-                                def arch = archMonitor.architecture ?: 'Unknown'
-                                echo "  🏗️  Architecture: ${arch}"
-                            }
+                            // Architecture Monitor (может быть недоступен в некоторых версиях Jenkins)
+                            // Убираем эту проверку, так как ArchitectureMonitor не предоставляет поле architecture напрямую
+                            // Архитектуру можно получить через systemInfo, но это требует дополнительных запросов
                         }
                         
                         echo "-" * 80
