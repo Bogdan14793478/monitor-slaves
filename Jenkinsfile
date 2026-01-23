@@ -242,8 +242,8 @@ pipeline {
                                 def responseMonitor = monitorData['hudson.node_monitors.ResponseTimeMonitor']
                                 def average = responseMonitor.average ?: 0
                                 if (average > 0) {
-                                    // Преобразуем в float для форматирования
-                                    def averageFloat = average instanceof Number ? average.toFloat() : Float.parseFloat(average.toString())
+                                    // Преобразуем в float для форматирования (используем безопасный способ для sandbox)
+                                    def averageFloat = average instanceof Number ? (average as Float) : (average.toString() as Double as Float)
                                     echo "  ⏱️  Average Response Time: ${String.format("%.2f", averageFloat)} ms"
                                 }
                             }
