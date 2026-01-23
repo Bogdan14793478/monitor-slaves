@@ -112,6 +112,47 @@ pipeline {
                     echo "Offline: ${offline}"
                     echo "Idle: ${idle}"
                     echo ""
+                    
+                    // Общая статистика по ресурсам
+                    def totalDiskSpace = 0
+                    def agentsWithDiskInfo = 0
+                    def totalSwapUsed = 0
+                    def totalSwapTotal = 0
+                    def agentsWithSwapInfo = 0
+                    
+                    computers.each { comp ->
+                        if (!comp.offline && comp.monitorData) {
+                            if (comp.monitorData['hudson.node_monitors.DiskSpaceMonitor']) {
+                                def diskSize = comp.monitorData['hudson.node_monitors.DiskSpaceMonitor'].size ?: 0
+                                if (diskSize > 0) {
+                                    totalDiskSpace += diskSize
+                                    agentsWithDiskInfo++
+                                }
+                            }
+                            if (comp.monitorData['hudson.node_monitors.SwapSpaceMonitor']) {
+                                def swapMonitor = comp.monitorData['hudson.node_monitors.SwapSpaceMonitor']
+                                def swapTotal = swapMonitor.swapTotal ?: 0
+                                def swapAvailable = swapMonitor.swapAvailable ?: 0
+                                if (swapTotal > 0) {
+                                    totalSwapTotal += swapTotal
+                                    totalSwapUsed += (swapTotal - swapAvailable)
+                                    agentsWithSwapInfo++
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (agentsWithDiskInfo > 0) {
+                        def avgDiskGB = (totalDiskSpace / agentsWithDiskInfo) / (1024 * 1024 * 1024)
+                        echo "📊 Average Free Disk Space: ${String.format("%.2f GB", avgDiskGB)} (across ${agentsWithDiskInfo} agents)"
+                    }
+                    if (agentsWithSwapInfo > 0) {
+                        def avgSwapUsedGB = (totalSwapUsed / agentsWithSwapInfo) / (1024 * 1024 * 1024)
+                        def avgSwapTotalGB = (totalSwapTotal / agentsWithSwapInfo) / (1024 * 1024 * 1024)
+                        def avgSwapPercent = (totalSwapUsed / totalSwapTotal) * 100
+                        echo "📊 Average Swap Usage: ${String.format("%.2f GB", avgSwapUsedGB)} / ${String.format("%.2f GB", avgSwapTotalGB)} (${String.format("%.1f", avgSwapPercent)}% used)"
+                    }
+                    echo ""
                     echo "=" * 80
                     
                     // Детальная информация по каждому агенту
@@ -150,6 +191,66 @@ pipeline {
                                 }
                             }
                         }
+                        
+                        // Информация о ресурсах из monitorData
+                        if (!isOffline && comp.monitorData) {
+                            def monitorData = comp.monitorData
+                            
+                            // Disk Space Monitor
+                            if (monitorData['hudson.node_monitors.DiskSpaceMonitor']) {
+                                def diskMonitor = monitorData['hudson.node_monitors.DiskSpaceMonitor']
+                                def size = diskMonitor.size ?: 0
+                                if (size > 0) {
+                                    def sizeGB = size / (1024 * 1024 * 1024)
+                                    def sizeMB = size / (1024 * 1024)
+                                    def sizeStr = sizeGB >= 1 ? String.format("%.2f GB", sizeGB) : String.format("%.2f MB", sizeMB)
+                                    echo "  💾 Free Disk Space: ${sizeStr}"
+                                }
+                            }
+                            
+                            // Temporary Space Monitor
+                            if (monitorData['hudson.node_monitors.TemporarySpaceMonitor']) {
+                                def tmpMonitor = monitorData['hudson.node_monitors.TemporarySpaceMonitor']
+                                def size = tmpMonitor.size ?: 0
+                                if (size > 0) {
+                                    def sizeGB = size / (1024 * 1024 * 1024)
+                                    def sizeMB = size / (1024 * 1024)
+                                    def sizeStr = sizeGB >= 1 ? String.format("%.2f GB", sizeGB) : String.format("%.2f MB", sizeMB)
+                                    echo "  📁 Free Temp Space: ${sizeStr}"
+                                }
+                            }
+                            
+                            // Swap Space Monitor
+                            if (monitorData['hudson.node_monitors.SwapSpaceMonitor']) {
+                                def swapMonitor = monitorData['hudson.node_monitors.SwapSpaceMonitor']
+                                def swapAvailable = swapMonitor.swapAvailable ?: 0
+                                def swapTotal = swapMonitor.swapTotal ?: 0
+                                if (swapTotal > 0) {
+                                    def swapUsed = swapTotal - swapAvailable
+                                    def swapUsedGB = swapUsed / (1024 * 1024 * 1024)
+                                    def swapTotalGB = swapTotal / (1024 * 1024 * 1024)
+                                    def swapPercent = (swapUsed / swapTotal) * 100
+                                    echo "  🔄 Swap: ${String.format("%.2f GB", swapUsedGB)} / ${String.format("%.2f GB", swapTotalGB)} (${String.format("%.1f", swapPercent)}% used)"
+                                }
+                            }
+                            
+                            // Response Time Monitor
+                            if (monitorData['hudson.node_monitors.ResponseTimeMonitor']) {
+                                def responseMonitor = monitorData['hudson.node_monitors.ResponseTimeMonitor']
+                                def average = responseMonitor.average ?: 0
+                                if (average > 0) {
+                                    echo "  ⏱️  Average Response Time: ${String.format("%.2f", average)} ms"
+                                }
+                            }
+                            
+                            // Architecture Monitor
+                            if (monitorData['hudson.node_monitors.ArchitectureMonitor']) {
+                                def archMonitor = monitorData['hudson.node_monitors.ArchitectureMonitor']
+                                def arch = archMonitor.architecture ?: 'Unknown'
+                                echo "  🏗️  Architecture: ${arch}"
+                            }
+                        }
+                        
                         echo "-" * 80
                     }
                     
