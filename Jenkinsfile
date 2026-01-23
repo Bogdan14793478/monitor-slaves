@@ -13,7 +13,6 @@ pipeline {
                 checkout scm
             }
         }
-
         stage('Monitor Slaves') {
             steps {
                 script {
