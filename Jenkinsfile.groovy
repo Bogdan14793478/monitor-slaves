@@ -38,9 +38,9 @@ pipeline {
                     
                     // Добавляем стандартные варианты (из конфигурации)
                     urlsToTry.addAll([
-                        'http://192.168.64.1:8080',       // IP хоста (из jenkins.yaml)
+                       'http://192.168.65.4:8080',       // IP хоста (из jenkins.yaml)
                         'http://jenkins:8080',             // Имя контейнера (если в той же сети)
-                        'http://192.168.97.2:8080',       // IP Jenkins в monitoring-network
+                        'http://192.168.65.1:8080',       // IP Jenkins в monitoring-network
                         'http://localhost:8080'            // Fallback
                     ])
                     
