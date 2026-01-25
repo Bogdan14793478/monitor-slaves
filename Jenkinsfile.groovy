@@ -2,26 +2,6 @@
 // Использует JavaMelody Monitoring Plugin напрямую
 // ТРЕБУЕТСЯ: Одобрить скрипты в Script Approval (Manage Jenkins -> In-process Script Approval)
 
-// Функция для форматирования размера памяти
-@NonCPS
-def formatMemory(long bytes) {
-    if (bytes < 1024) {
-        return "${bytes} B"
-    } else if (bytes < 1024 * 1024) {
-        return String.format("%.2f KB", bytes / 1024.0)
-    } else if (bytes < 1024 * 1024 * 1024) {
-        return String.format("%.2f MB", bytes / (1024.0 * 1024.0))
-    } else {
-        return String.format("%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0))
-    }
-}
-
-// Функция для форматирования процентов
-@NonCPS
-def formatPercent(double value) {
-    return String.format("%.2f%%", value)
-}
-
 node {
     try {
         stage('Checkout') {
@@ -105,7 +85,7 @@ node {
                 }
                 if (systemCpuLoad != null && systemCpuLoad >= 0) {
                     def cpuPercent = systemCpuLoad * 100
-                    def cpuPercentStr = formatPercent(cpuPercent)
+                    def cpuPercentStr = String.format("%.2f%%", cpuPercent)
                     echo "  System CPU Load: ${cpuPercentStr}"
                     totalSystemCpuLoad += systemCpuLoad
                     nodesWithCpuInfo++
@@ -125,35 +105,56 @@ node {
                     def usedSwap = memory.usedSwapSpaceSize ?: 0L
                     
                     echo "  Memory Information:"
-                    def usedMemoryStr = formatMemory(usedMemory)
-                    def maxMemoryStr = formatMemory(maxMemory)
+                    def usedMemoryStr = usedMemory < 1024 ? "${usedMemory} B" : 
+                        (usedMemory < 1024 * 1024 ? String.format("%.2f KB", usedMemory / 1024.0) :
+                        (usedMemory < 1024 * 1024 * 1024 ? String.format("%.2f MB", usedMemory / (1024.0 * 1024.0)) :
+                        String.format("%.2f GB", usedMemory / (1024.0 * 1024.0 * 1024.0))))
+                    def maxMemoryStr = maxMemory < 1024 ? "${maxMemory} B" : 
+                        (maxMemory < 1024 * 1024 ? String.format("%.2f KB", maxMemory / 1024.0) :
+                        (maxMemory < 1024 * 1024 * 1024 ? String.format("%.2f MB", maxMemory / (1024.0 * 1024.0)) :
+                        String.format("%.2f GB", maxMemory / (1024.0 * 1024.0 * 1024.0))))
                     echo "    Used Memory: ${usedMemoryStr}"
                     echo "    Max Memory: ${maxMemoryStr}"
                     
                     if (maxMemory > 0) {
                         def memoryPercent = (usedMemory / maxMemory) * 100.0
-                        def memoryPercentStr = formatPercent(memoryPercent)
+                        def memoryPercentStr = String.format("%.2f%%", memoryPercent)
                         echo "    Memory Usage: ${memoryPercentStr}"
                     }
                     
                     if (usedPermGen > 0) {
-                        def usedPermGenStr = formatMemory(usedPermGen)
+                        def usedPermGenStr = usedPermGen < 1024 ? "${usedPermGen} B" : 
+                            (usedPermGen < 1024 * 1024 ? String.format("%.2f KB", usedPermGen / 1024.0) :
+                            (usedPermGen < 1024 * 1024 * 1024 ? String.format("%.2f MB", usedPermGen / (1024.0 * 1024.0)) :
+                            String.format("%.2f GB", usedPermGen / (1024.0 * 1024.0 * 1024.0))))
                         echo "    Used Perm Gen: ${usedPermGenStr}"
                     }
                     if (maxPermGen > 0) {
-                        def maxPermGenStr = formatMemory(maxPermGen)
+                        def maxPermGenStr = maxPermGen < 1024 ? "${maxPermGen} B" : 
+                            (maxPermGen < 1024 * 1024 ? String.format("%.2f KB", maxPermGen / 1024.0) :
+                            (maxPermGen < 1024 * 1024 * 1024 ? String.format("%.2f MB", maxPermGen / (1024.0 * 1024.0)) :
+                            String.format("%.2f GB", maxPermGen / (1024.0 * 1024.0 * 1024.0))))
                         echo "    Max Perm Gen: ${maxPermGenStr}"
                     }
                     if (usedNonHeap > 0) {
-                        def usedNonHeapStr = formatMemory(usedNonHeap)
+                        def usedNonHeapStr = usedNonHeap < 1024 ? "${usedNonHeap} B" : 
+                            (usedNonHeap < 1024 * 1024 ? String.format("%.2f KB", usedNonHeap / 1024.0) :
+                            (usedNonHeap < 1024 * 1024 * 1024 ? String.format("%.2f MB", usedNonHeap / (1024.0 * 1024.0)) :
+                            String.format("%.2f GB", usedNonHeap / (1024.0 * 1024.0 * 1024.0))))
                         echo "    Used Non-Heap: ${usedNonHeapStr}"
                     }
                     if (usedPhysical > 0) {
-                        def usedPhysicalStr = formatMemory(usedPhysical)
+                        def usedPhysicalStr = usedPhysical < 1024 ? "${usedPhysical} B" : 
+                            (usedPhysical < 1024 * 1024 ? String.format("%.2f KB", usedPhysical / 1024.0) :
+                            (usedPhysical < 1024 * 1024 * 1024 ? String.format("%.2f MB", usedPhysical / (1024.0 * 1024.0)) :
+                            String.format("%.2f GB", usedPhysical / (1024.0 * 1024.0 * 1024.0))))
                         echo "    Used Physical Memory: ${usedPhysicalStr}"
                     }
                     if (usedSwap > 0) {
-                        def usedSwapStr = formatMemory(usedSwap)
+                        def usedSwapStr = usedSwap < 1024 ? "${usedSwap} B" : 
+                            (usedSwap < 1024 * 1024 ? String.format("%.2f KB", usedSwap / 1024.0) :
+                            (usedSwap < 1024 * 1024 * 1024 ? String.format("%.2f MB", usedSwap / (1024.0 * 1024.0)) :
+                            String.format("%.2f GB", usedSwap / (1024.0 * 1024.0 * 1024.0))))
                         echo "    Used Swap Space: ${usedSwapStr}"
                     }
                     
@@ -211,9 +212,15 @@ node {
             
             if (totalMaxMemory > 0) {
                 def avgMemoryPercent = (totalUsedMemory / totalMaxMemory) * 100.0
-                def totalUsedMemoryStr = formatMemory(totalUsedMemory)
-                def totalMaxMemoryStr = formatMemory(totalMaxMemory)
-                def avgMemoryPercentStr = formatPercent(avgMemoryPercent)
+                def totalUsedMemoryStr = totalUsedMemory < 1024 ? "${totalUsedMemory} B" : 
+                    (totalUsedMemory < 1024 * 1024 ? String.format("%.2f KB", totalUsedMemory / 1024.0) :
+                    (totalUsedMemory < 1024 * 1024 * 1024 ? String.format("%.2f MB", totalUsedMemory / (1024.0 * 1024.0)) :
+                    String.format("%.2f GB", totalUsedMemory / (1024.0 * 1024.0 * 1024.0))))
+                def totalMaxMemoryStr = totalMaxMemory < 1024 ? "${totalMaxMemory} B" : 
+                    (totalMaxMemory < 1024 * 1024 ? String.format("%.2f KB", totalMaxMemory / 1024.0) :
+                    (totalMaxMemory < 1024 * 1024 * 1024 ? String.format("%.2f MB", totalMaxMemory / (1024.0 * 1024.0)) :
+                    String.format("%.2f GB", totalMaxMemory / (1024.0 * 1024.0 * 1024.0))))
+                def avgMemoryPercentStr = String.format("%.2f%%", avgMemoryPercent)
                 echo "Total Used Memory: ${totalUsedMemoryStr}"
                 echo "Total Max Memory: ${totalMaxMemoryStr}"
                 echo "Average Memory Usage: ${avgMemoryPercentStr}"
@@ -221,7 +228,7 @@ node {
             
             if (nodesWithCpuInfo > 0) {
                 def avgCpuLoad = (totalSystemCpuLoad / nodesWithCpuInfo) * 100.0
-                def avgCpuLoadStr = formatPercent(avgCpuLoad)
+                def avgCpuLoadStr = String.format("%.2f%%", avgCpuLoad)
                 echo "Average System CPU Load: ${avgCpuLoadStr}"
             }
             
