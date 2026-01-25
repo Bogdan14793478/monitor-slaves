@@ -25,7 +25,7 @@ def formatPercent(double value) {
     return String.format("%.2f%%", value)
 }
 
-node('any') {
+node {
     try {
         stage('Checkout') {
             checkout scm
