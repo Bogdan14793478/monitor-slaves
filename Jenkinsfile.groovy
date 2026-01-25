@@ -1,9 +1,6 @@
 // Скриптовый Jenkinsfile для мониторинга агентов через JavaMelody API
-// Использует JavaMelody Monitoring Plugin для получения информации о нодах
-
-import net.bull.javamelody.*
-import net.bull.javamelody.internal.model.*
-import net.bull.javamelody.internal.common.*
+// Использует JavaMelody Monitoring Plugin напрямую
+// ТРЕБУЕТСЯ: Одобрить скрипты в Script Approval (Manage Jenkins -> In-process Script Approval)
 
 // Функция для форматирования размера памяти
 @NonCPS
@@ -36,12 +33,18 @@ node {
             echo "Time: ${new Date()}"
             echo ""
             
-            // Получаем информацию о всех нодах через JavaMelody API
-            // null для nodeName означает все ноды
-            String nodeName = null
+            echo "Collecting Java information from all nodes via JavaMelody API..."
             
-            echo "Collecting Java information from all nodes..."
-            Map mapByNodeName = new RemoteCallHelper(nodeName).collectJavaInformationsListByName()
+            // Используем JavaMelody API напрямую
+            // ВАЖНО: Этот код требует одобрения в Script Approval
+            // Перейдите в: Manage Jenkins -> In-process Script Approval
+            // И одобрите следующие сигнатуры:
+            //   - new net.bull.javamelody.RemoteCallHelper java.lang.String
+            //   - method net.bull.javamelody.RemoteCallHelper collectJavaInformationsListByName
+            //   - method net.bull.javamelody.internal.model.JavaInformations getThreadInformationsList
+            
+            String nodeName = null  // null для всех нод
+            Map mapByNodeName = new net.bull.javamelody.RemoteCallHelper(nodeName).collectJavaInformationsListByName()
             
             if (mapByNodeName == null || mapByNodeName.isEmpty()) {
                 error("❌ ERROR: No nodes found or failed to collect information")
@@ -63,11 +66,12 @@ node {
             def nodesWithCpuInfo = 0
             
             // Обрабатываем каждую ноду
-            for (node in mapByNodeName.keySet()) {
-                def java = mapByNodeName.get(node)
+            for (nodeEntry in mapByNodeName.entrySet()) {
+                def nodeNameKey = nodeEntry.key
+                def java = nodeEntry.value
                 
                 echo ""
-                echo "Node: ${node}"
+                echo "Node: ${nodeNameKey}"
                 echo "  Host: ${java.host ?: 'N/A'}"
                 echo "  OS: ${java.os ?: 'N/A'}"
                 echo "  Java Version: ${java.javaVersion ?: 'N/A'}"
@@ -213,10 +217,21 @@ node {
             echo "Monitoring completed successfully"
             echo "=" * 80
         }
+    } catch (org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException e) {
+        echo "❌ ERROR: Script Approval required!"
+        echo ""
+        echo "Для использования JavaMelody API необходимо одобрить скрипты:"
+        echo "1. Перейдите в: Manage Jenkins -> In-process Script Approval"
+        echo "2. Одобрите следующие сигнатуры:"
+        echo "   - new net.bull.javamelody.RemoteCallHelper java.lang.String"
+        echo "   - method net.bull.javamelody.RemoteCallHelper collectJavaInformationsListByName"
+        echo "   - method net.bull.javamelody.internal.model.JavaInformations getThreadInformationsList"
+        echo ""
+        echo "После одобрения запустите pipeline снова."
+        currentBuild.result = 'FAILURE'
+        throw e
     } catch (Exception e) {
         echo "❌ ERROR: ${e.getMessage()}"
-        echo "Stack trace:"
-        e.printStackTrace()
         currentBuild.result = 'FAILURE'
         throw e
     }
