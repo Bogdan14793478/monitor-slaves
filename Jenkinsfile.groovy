@@ -3,7 +3,6 @@
 def parseJson(String json) {
     return new groovy.json.JsonSlurper().parseText(json)
 }
-
 pipeline {
     agent any
 
