@@ -183,7 +183,6 @@ node {
             echo "Sending Telegram notification (${msg.length()} chars)..."
            // lib not work, use curl instead
            // telegramSend(message: msg)
-           // telegramSend(message: 'Hello World', chatId: 415455878)
 
               withCredentials([
                   usernamePassword(
