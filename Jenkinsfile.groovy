@@ -187,12 +187,12 @@ node {
               withCredentials([
                   usernamePassword(
                     credentialsId: 'telegram_auth',
-                    usernameVariable: 'TG_BOT_NAME',
+                    usernameVariable: 'TG_CHAT_ID',
                     passwordVariable: 'TG_TOKEN'
                   )
                 ]) {
                   def encoded = java.net.URLEncoder.encode(msg, 'UTF-8')
-                  sh 'curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=${TG_BOT_NAME}" -d "text=' + encoded + '"'
+                  sh 'curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=${TG_CHAT_ID}" -d "text=' + encoded + '"'
                 }
             
             echo "Telegram notification sent."
