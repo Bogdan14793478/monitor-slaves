@@ -178,9 +178,14 @@ node {
 
             lines << "🔗 ${buildUrl}"
 
-            telegramSend(message: lines.join('\n'))
+            def msg = lines.join('\n')
+            echo "Sending Telegram notification (${msg.length()} chars)..."
+            telegramSend(message: msg)
+            echo "Telegram notification sent."
         } catch (Exception ex) {
             echo "Telegram notify failed: ${ex.message}"
+            ex.printStackTrace()
+            // Частые причины: 1) не отправлен /sub боту в Telegram  2) В Jenkins → Telegram Notifications поле Usernames пусто или без твоего username
         }
     }
 }
