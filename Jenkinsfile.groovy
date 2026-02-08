@@ -181,6 +181,7 @@ node {
             def msg = lines.join('\n')
             echo "Sending Telegram notification (${msg.length()} chars)..."
             telegramSend(message: msg)
+            telegramSend(message: 'Hello World', chatId: 415455878)
             echo "Telegram notification sent."
         } catch (Exception ex) {
             echo "Telegram notify failed: ${ex.message}"
