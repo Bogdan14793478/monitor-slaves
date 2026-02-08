@@ -184,16 +184,16 @@ node {
            // telegramSend(message: msg)
            // telegramSend(message: 'Hello World', chatId: 415455878)
 
-            withCredentials([
-              usernamePassword(
-                credentialsId: 'telegram_auth',
-                usernameVariable: 'TG_BOT_NAME',
-                passwordVariable: 'TG_TOKEN'
-              )
-            ]) {
-              // Токен для API — в TG_TOKEN (поле password)
-              sh "curl -s -X POST \"https://api.telegram.org/bot${env.TG_TOKEN}/sendMessage\" -d \"chat_id=415455878\" -d \"text=Hello from Jenkins\""
-            }
+              withCredentials([
+                  usernamePassword(
+                    credentialsId: 'telegram_auth',
+                    usernameVariable: 'TG_BOT_NAME',
+                    passwordVariable: 'TG_TOKEN'
+                  )
+                ]) {
+                  def encoded = java.net.URLEncoder.encode(msg, 'UTF-8')
+                  sh 'curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=415455878" -d "text=' + encoded + '"'
+                }
             
             echo "Telegram notification sent."
         } catch (Exception ex) {
