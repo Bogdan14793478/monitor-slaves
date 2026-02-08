@@ -84,9 +84,10 @@ node {
                     echo "  System Load Average: ${String.format("%.2f", systemLoadAverage)}"
                 }
                 if (systemCpuLoad != null && systemCpuLoad >= 0) {
-                    def cpuPercent = systemCpuLoad * 100
-                    echo "  System CPU Load: ${String.format("%.2f%%", cpuPercent)}"
-                    totalSystemCpuLoad += systemCpuLoad
+                    // JVM может возвращать 0–1 (доля) или уже 0–100 (проценты) — нормализуем к 0–100%
+                    def nodeCpuPercent = (systemCpuLoad <= 1.0) ? (systemCpuLoad * 100.0) : Math.min(systemCpuLoad, 100.0)
+                    echo "  System CPU Load: ${String.format("%.2f%%", nodeCpuPercent)}"
+                    totalSystemCpuLoad += nodeCpuPercent
                     nodesWithCpuInfo++
                 }
 
@@ -117,7 +118,7 @@ node {
                 echo "Memory: ${String.format("%.2f GB", totalUsedMemory / (1024.0 * 1024.0 * 1024.0))} / ${String.format("%.2f GB", totalMaxMemory / (1024.0 * 1024.0 * 1024.0))}"
             }
             if (nodesWithCpuInfo > 0) {
-                echo "Avg CPU: ${String.format("%.2f%%", (totalSystemCpuLoad / nodesWithCpuInfo) * 100.0)}"
+                echo "Avg CPU: ${String.format("%.2f%%", totalSystemCpuLoad / nodesWithCpuInfo)}"
             }
             echo "=" * 80
 
@@ -130,7 +131,7 @@ node {
             summary.totalMaxMemory = totalMaxMemory
             summary.hasMemory = (totalMaxMemory > 0)
             summary.hasCpu = (nodesWithCpuInfo > 0)
-            summary.avgCpuPercent = nodesWithCpuInfo > 0 ? (totalSystemCpuLoad / nodesWithCpuInfo) * 100.0f : 0.0f
+            summary.avgCpuPercent = nodesWithCpuInfo > 0 ? (totalSystemCpuLoad / nodesWithCpuInfo) : 0.0f
         }
     } catch (org.jenkinsci.plugins.scriptsecurity.sandbox.RejectedAccessException e) {
         echo "❌ ERROR: Script Approval required!"
@@ -192,7 +193,7 @@ node {
                   )
                 ]) {
                   def encoded = java.net.URLEncoder.encode(msg, 'UTF-8')
-                  sh 'curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=415455878" -d "text=' + encoded + '"'
+                  sh 'curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" -d "chat_id=${TG_BOT_NAME}" -d "text=' + encoded + '"'
                 }
             
             echo "Telegram notification sent."
