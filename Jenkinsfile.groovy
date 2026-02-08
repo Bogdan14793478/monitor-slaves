@@ -85,7 +85,7 @@ node {
                 }
                 if (systemCpuLoad != null && systemCpuLoad >= 0) {
                     // JVM может возвращать 0–1 (доля) или уже 0–100 (проценты) — нормализуем к 0–100%
-                    def nodeCpuPercent = (systemCpuLoad <= 1.0) ? (systemCpuLoad * 100.0) : Math.min(systemCpuLoad, 100.0)
+                    def nodeCpuPercent = (systemCpuLoad <= 1.0) ? (systemCpuLoad * 100.0) : (systemCpuLoad > 100.0 ? 100.0 : systemCpuLoad)
                     echo "  System CPU Load: ${String.format("%.2f%%", nodeCpuPercent)}"
                     totalSystemCpuLoad += nodeCpuPercent
                     nodesWithCpuInfo++
