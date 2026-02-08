@@ -180,8 +180,21 @@ node {
 
             def msg = lines.join('\n')
             echo "Sending Telegram notification (${msg.length()} chars)..."
-            telegramSend(message: msg)
-            telegramSend(message: 'Hello World', chatId: 415455878)
+           // lib not work, use curl instead
+           // telegramSend(message: msg)
+           // telegramSend(message: 'Hello World', chatId: 415455878)
+
+            withCredentials([
+              usernamePassword(
+                credentialsId: 'telegram_auth',
+                usernameVariable: 'TG_BOT_NAME',
+                passwordVariable: 'TG_TOKEN'
+              )
+            ]) {
+              // Токен для API — в TG_TOKEN (поле password)
+              sh "curl -s -X POST \"https://api.telegram.org/bot${env.TG_TOKEN}/sendMessage\" -d \"chat_id=415455878\" -d \"text=Hello from Jenkins\""
+            }
+            
             echo "Telegram notification sent."
         } catch (Exception ex) {
             echo "Telegram notify failed: ${ex.message}"
